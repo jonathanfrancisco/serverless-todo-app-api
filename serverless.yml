@@ -1,0 +1,63 @@
+service: serverless-todo-app
+provider:
+  name: aws
+  profile: serverlessUser
+  runtime: nodejs12.x
+  stage: dev
+  region: ap-southeast-1
+  environment:
+    TODOS_TABLE_NAME: ${self:custom.todosTableName}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:*
+      Resource: '*'
+
+custom:
+  todosTableName: todos
+
+package:
+  individually: true
+
+functions:
+  viewTodos:
+    handler: todos/viewTodos.handler
+    events:
+      - http:
+          path: todos
+          method: GET
+          cors: true
+  addTodo:
+    handler: todos/addTodo.handler
+    events:
+      - http:
+          path: todos
+          method: POST
+          cors: true
+  deleteTodo:
+    handler: todos/deleteTodo.handler
+    events:
+      - http:
+          path: todos/{id}
+          method: DELETE
+          cors: true
+
+resources:
+  Resources:
+    DynamoDBTodosTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.todosTableName}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        BillingMode: PROVISIONED
+
+plugins:
+  - serverless-webpack
