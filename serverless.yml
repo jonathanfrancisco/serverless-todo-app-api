@@ -15,6 +15,10 @@ provider:
 
 custom:
   todosTableName: todos
+  cognitoUserPoolName: todo-app-user-pool
+  cognitoUserPoolClientName: todo-app-user-pool-client
+  cognitoUserPoolClientDomainName: serverlesstodoapp
+  apiGateWayAuthorizerName: todo-app-cognito-authorizer
 
 package:
   individually: true
@@ -27,6 +31,11 @@ functions:
           path: todos
           method: GET
           cors: true
+          authorizer:
+            type: cognito_user_pools
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
   addTodo:
     handler: todos/addTodo.handler
     events:
@@ -34,6 +43,10 @@ functions:
           path: todos
           method: POST
           cors: true
+          authorizer:
+            type: cognito_user_pools
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
   deleteTodo:
     handler: todos/deleteTodo.handler
     events:
@@ -41,6 +54,10 @@ functions:
           path: todos/{id}
           method: DELETE
           cors: true
+          authorizer:
+            type: cognito_user_pools
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
 
 resources:
   Resources:
@@ -58,6 +75,64 @@ resources:
           ReadCapacityUnits: 5
           WriteCapacityUnits: 5
         BillingMode: PROVISIONED
+
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: ${self:custom.cognitoUserPoolName}
+        UsernameAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 6
+            RequireLowercase: false
+            RequireNumbers: false
+            RequireSymbols: false
+            RequireUppercase: false
+        AutoVerifiedAttributes:
+          - email
+
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: ${self:custom.cognitoUserPoolClientName}
+        ExplicitAuthFlows:
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+        GenerateSecret: false
+        AllowedOAuthFlowsUserPoolClient: true
+        SupportedIdentityProviders:
+          - COGNITO
+        CallbackURLs:
+          - https://localhost:3000
+        AllowedOAuthFlows:
+          - code
+        AllowedOAuthScopes:
+          - phone
+          - email
+          - openid
+          - profile
+          - aws.cognito.signin.user.admin
+        UserPoolId:
+          Ref: CognitoUserPool
+
+    CognitoUserPoolDomain:
+      Type: AWS::Cognito::UserPoolDomain
+      Properties:
+        Domain: ${self:custom.cognitoUserPoolClientDomainName}
+        UserPoolId:
+          Ref: CognitoUserPool
+
+    ApiGatewayAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        Name: ${self:custom.apiGateWayAuthorizerName}
+        Type: COGNITO_USER_POOLS
+        IdentitySource: method.request.header.Authorization
+        ProviderARNs:
+          - Fn::GetAtt: [CognitoUserPool, Arn]
+        RestApiId:
+          Ref: ApiGatewayRestApi
 
 plugins:
   - serverless-webpack
