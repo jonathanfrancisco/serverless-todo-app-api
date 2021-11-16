@@ -13,7 +13,7 @@
     "@middy/http-error-handler": "^1.0.0",
     "@middy/http-json-body-parser": "^1.0.0",
     "@middy/validator": "^1.0.0",
-    "aws-sdk": "^2.698.0",
+    "aws-sdk": "^2.814.0",
     "uuid": "^8.1.0"
   },
   "devDependencies": {
